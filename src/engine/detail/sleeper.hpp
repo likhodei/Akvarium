@@ -1,11 +1,9 @@
 #pragma once
-#ifndef ENGINE_DETAIL_SLEEPER_H_
-#define ENGINE_DETAIL_SLEEPER_H_
-
+#include <ctime>
 #include <cstdint>
 
 void asm_volatile_pause();
-int nanosleep(time_t tv_sec, long tv_nsec);
+int nanosleep(std::time_t tv_sec, long tv_nsec);
 
 namespace akva{
 namespace engine{
@@ -22,5 +20,3 @@ private:
 
 } // engine
 } // akva
-
-#endif ENGINE_DETAIL_SLEEPER_H_

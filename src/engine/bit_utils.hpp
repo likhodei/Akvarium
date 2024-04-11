@@ -1,11 +1,6 @@
 #pragma once
-#ifndef BIT_OPERATION_H_
-#define BIT_OPERATION_H_
-
 #include <cassert>
 #include <cstdint>
-
-//= bit operation
 
 template< typename T >
 inline bool Even(T num){
@@ -44,7 +39,7 @@ inline void ClrBits(T1& word, T2 bits){
 
 template< typename baseT >
 inline baseT Reverse(baseT x){
-	assert(!"Type is unsupported.");
+	static_assert(false, "Type is unsupported.");
     return x;
 }
 
@@ -65,5 +60,3 @@ inline uint32_t Reverse(uint32_t x){
     x = (((x & 0xff00ff00) >> 8) | ((x & 0x00ff00ff) << 8));
     return ((x >> 16) | (x << 16));
 }
-
-#endif // BIT_OPERATION_H_

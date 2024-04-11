@@ -1,5 +1,5 @@
 #include "protocol.hpp"
-#include "block.hpp"
+#include "frame.hpp"
 
 namespace akva{
 namespace engine{
@@ -17,7 +17,7 @@ uint16_t AkvaReader::QoS(uint8_t *buf){
 }
 
 bool AkvaReader::Complited() const{
-    uint16_t sz = DataFrame::ceil4(hdr_.len) << 2;
+    uint16_t sz = Frame::ceil4(hdr_.len) << 2;
     return (writed_ == sz) ? true : false;
 }
 
@@ -46,7 +46,7 @@ AkvaReader* AkvaReader::Head(uint32_t *b, uint32_t *e){
         b_ = e_;
     }
     else if(fh->pointer > 0){
-        uint32_t *c = b_ + DataFrame::ceil4(fh->pointer);
+        uint32_t *c = b_ + Frame::ceil4(fh->pointer);
 
         if(c > e_) // data overhead
             c = e_;
@@ -63,7 +63,7 @@ AkvaReader* AkvaReader::Head(uint32_t *b, uint32_t *e){
 
         if(hdr_.len > 0){
             b_++;
-            uint32_t *c = b_ + DataFrame::ceil4(hdr_.len);
+            uint32_t *c = b_ + Frame::ceil4(hdr_.len);
 
             if(c > e_) // data overhead
                 c = e_;
@@ -90,7 +90,7 @@ AkvaReader* AkvaReader::Next(){
 
     if(hdr_.len > 0){
         b_++;
-        uint32_t *c = b_ + DataFrame::ceil4(hdr_.len);
+        uint32_t *c = b_ + Frame::ceil4(hdr_.len);
 
         if(c > e_) // data overhead
             c = e_;

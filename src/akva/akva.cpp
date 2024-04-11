@@ -1,12 +1,14 @@
 #include "akva.hpp"
-#include "manager.hpp"
-
-#include <boost/bind.hpp>
 
 #include <cstdlib>
 #include <iostream>
 #include <sstream>
 #include <iomanip>
+#include <functional>
+
+#include <boost/bind.hpp>
+
+#include "manager.hpp"
 
 using namespace akva;
 
@@ -16,18 +18,18 @@ Pipeline::Pipeline()
 : local_(10, 4096)
 { }
 
-action_sh_t Pipeline::Service(Manager *const mngr, action_sh_t act, uint32_t tick){
-	return action_sh_t();
+ctx::ptr_t Pipeline::Service(Manager *const mngr, ctx::ptr_t c, uint32_t tick){
+	return ctx::ptr_t();
 }
 
-action_sh_t Pipeline::Play(Manager *const mngr, action_sh_t act, mail::ptr_t m){
-	return action_sh_t();
+ctx::ptr_t Pipeline::Play(Manager *const mngr, ctx::ptr_t c, graph::ptr_t m){
+	return ctx::ptr_t();
 }
 
-void Pipeline::Complite(Manager *const mngr, mail::ptr_t m){
+void Pipeline::Complite(Manager *const mngr, graph::ptr_t m){
     auto i = holds_.find(m->hash_value());
     if(i != holds_.end()){
-        action_sh_t w = i->second;
+        ctx::ptr_t w = i->second;
         if(w)
             w->Complite(mngr, this, m);
 
@@ -43,7 +45,7 @@ buffer_ptr_t Pipeline::MakeData(){
 	return new Buffer(&local_);
 }
 
-bool Pipeline::filter(mail::ptr_t m){
+bool Pipeline::filter(graph::ptr_t m){
     if(white_.empty() || (white_.find(m->hdr()->group) != white_.end())){
         if(black_.find(m->hdr()->magic) == black_.end()){
 			return true;
@@ -53,23 +55,23 @@ bool Pipeline::filter(mail::ptr_t m){
 	return false;
 }
 
-mail::ptr_t Pipeline::Broadcast(Manager *const mngr, mail::type_t type, uint16_t spec, const std::list< message_t >& msgs){
-	mail::ptr_t mail = mngr->Pack(type, spec, msgs);
-	mail->hdr()->magic = magic();
-	mngr->Broadcast(mail, true); // !!!!!!
-	return mail;
+graph::ptr_t Pipeline::Broadcast(Manager *const mngr, graph::type_t type, uint16_t spec, const std::list< Message >& msgs){
+	graph::ptr_t g = mngr->Pack(type, spec, msgs);
+	g->hdr()->magic = magic();
+	mngr->Broadcast(g, true); // !!!!!!
+	return g;
 }
 
-mail::ptr_t Pipeline::WaitAnnonce(mail::ptr_t m, action_sh_t act){
-	if(act)
-		holds_[m->hash_value()] = act;
+graph::ptr_t Pipeline::WaitAnnonce(graph::ptr_t g, ctx::ptr_t c){
+	if(c)
+		holds_[g->hash_value()] = c;
 
-	return m;
+	return g;
 }
 
-mail::ptr_t Pipeline::Broadcast(Manager *const mngr, mail::type_t type, uint16_t spec, const std::list< message_t >& msgs, action_sh_t act){
-	mail::ptr_t m = Broadcast(mngr, type, spec, msgs);
-	return WaitAnnonce(m, act);
+graph::ptr_t Pipeline::Broadcast(Manager *const mngr, graph::type_t type, uint16_t spec, const std::list< Message >& msgs, ctx::ptr_t c){
+	graph::ptr_t g = Broadcast(mngr, type, spec, msgs);
+	return WaitAnnonce(g, c);
 }
 
 Pipeline *const Pipeline::white(uint16_t group){
@@ -253,10 +255,10 @@ void Pipe::HandleWrite(const boost::system::error_code& ec, buffer_ptr_t rb){
 	}
 }
 
-action_sh_t Pipe::Play(Manager *const mngr, action_sh_t act, mail::ptr_t m){
-    if(m && m->ok()){
-        if(engine::Regedit::IxByMagic(m->hdr()->magic) == gm_->kseed()){ //!!! We posting only self mails.
-            writer_.Write(42, m->data(), m->bytes());
+ctx::ptr_t Pipe::Play(Manager *const mngr, ctx::ptr_t c, graph::ptr_t g){
+    if(g && g->ok()){
+        if(engine::Regedit::IxByMagic(g->hdr()->magic) == gm_->kseed()){ //!!! We posting only self mails.
+            writer_.Write(42, g->data(), g->bytes());
         }
     }
 
@@ -269,7 +271,7 @@ action_sh_t Pipe::Play(Manager *const mngr, action_sh_t act, mail::ptr_t m){
     }
 
     AsyncWrite();
-	return action_sh_t();
+	return ctx::ptr_t();
 }
 
 // +++ Tube +++
@@ -391,11 +393,11 @@ void Tube::HandleRead(const boost::system::error_code& ec, size_t transferred, b
                 }
 
                 if(s->Complited()){
-                    mail::ptr_t m = boost::make_shared< mail::Mail >((uint32_t *const)physical_[qos]->buf(), s->hdr_.len >> 2);
-                    if(m->ok()){
-                        uint64_t users = m->Visit(gm_->MAGIC);
+                    graph::ptr_t g = std::make_shared< graph::Graph >((uint32_t *const)physical_[qos]->buf(), s->hdr_.len >> 2);
+                    if(g->ok()){
+                        uint64_t users = g->Visit(gm_->MAGIC);
                         gm_->Refresh(users);
-						gm_->Broadcast(m);
+						gm_->Broadcast(g);
                     }
                 }
             }

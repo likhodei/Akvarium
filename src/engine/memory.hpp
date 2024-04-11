@@ -1,60 +1,18 @@
 #pragma once
-#ifndef ENGINE_BLOCK_ENVIRONMENT_H_
-#define ENGINE_BLOCK_ENVIRONMENT_H_
+#include <random>
+#include <vector>
 
-#include "block_interface.hpp"
-
-#include <boost/utility.hpp>
-#include <boost/scoped_ptr.hpp>
-#include <boost/random.hpp>
 #include <boost/interprocess/sync/interprocess_mutex.hpp>
-
 #include <boost/predef.h>
 
 #if defined(BOOST_OS_WINDOWS)
 #include <Windows.h>
 #endif
 
-#include <vector>
-//#include <map>
+#include "allocator.hpp"
 
 namespace akva{
 namespace mem{
-
-#pragma pack(push, 4)
-
-struct UniMessage{
-	enum: uint64_t{
-		MASK_LOG = 0xffffffffffc00000,
-		MASK_POS = 0x00000000003fffc0,
-		MASK_SHIFT = 0x000000000000003f
-	};
-
-	uint64_t shift : 6, pos : 16, log : 42;
-
-	inline UniMessage(){
-		shift = 0;
-		pos = 0;
-		log = 0;
-	}
-
-	inline uint64_t Pack() const{
-		uint64_t message(0);
-		memcpy(&message, this, sizeof(message));
-		return message;
-	}
-
-	inline bool UnPack(uint64_t message){
-		if(message > 0){
-			memcpy(this, &message, sizeof(message));
-			return true;
-		}
-		else
-			return false;
-	}
-};
-
-#pragma pack(pop)
 
 struct Node{
 	enum{
@@ -89,7 +47,7 @@ public:
 protected:
 	const float P_;
 	baseT *const base_;
-	boost::random::mt19937 rng_;
+	std::mt19937 rng_;
 	Node* trace_[Node::MAX_LEVEL + 1];
 	uint16_t level_;
 };
@@ -132,7 +90,8 @@ private:
 
 template< typename baseT >
 CoreSpace< baseT >::CoreSpace(baseT *const base)
-	: P_(0.5), level_(0), base_(base){}
+: P_(0.5), level_(0), base_(base)
+{ }
 
 template< typename baseT >
 CoreSpace< baseT >::~CoreSpace(){}
@@ -140,7 +99,7 @@ CoreSpace< baseT >::~CoreSpace(){}
 template< typename baseT >
 uint16_t CoreSpace< baseT >::RandomLevel(){
 	uint16_t lvl = 0;
-	boost::random::uniform_real_distribution< > gen(0.0, 1.0);
+	std::uniform_real_distribution< > gen(0.0, 1.0);
 	while((gen(rng_) < P_) && (lvl < Node::MAX_LEVEL)){
 		lvl++;
 	}
@@ -247,5 +206,4 @@ Node* CoreSpace< baseT >::Move(Node* x, uint64_t key){
 
 } // mem
 } // akva
-#endif // ENGINE_BLOCK_ENVIRONMENT_H_
 

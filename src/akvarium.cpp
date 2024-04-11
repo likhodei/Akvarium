@@ -1,26 +1,22 @@
-#include "akva/driver.hpp"
-#include "akva/manager.hpp"
-#include "akva/akva.hpp"
-#include "support/notify_to_console.hpp"
-
-#include <boost/program_options.hpp>
-#include <boost/filesystem.hpp>
-#include <boost/scoped_ptr.hpp>
-#include <boost/intrusive/circular_list_algorithms.hpp>
-
 #include <random>
-#include <locale>
 #include <cstdlib>
 #include <iostream>
 #include <sstream>
 #include <iomanip>
 
-namespace fs = boost::filesystem;
+#include <boost/program_options.hpp>
+
+#include "akva/driver.hpp"
+#include "akva/manager.hpp"
+#include "akva/akva.hpp"
+#include "engine/terminal.hpp"
+
 namespace po = boost::program_options;
 
 using akva::Manager;
-using akva::action_sh_t;
-using akva::message_t;
+//using akva::ctx;
+using akva::Message;
+
 
 BOOL WINAPI ConsoleHandler(DWORD cEvent){
 	BOOL out = TRUE;
@@ -48,12 +44,12 @@ class Runner: public akva::Akva< Runner >{
 public:
 	Runner(Manager *const mngr, const std::string& tag);
 
-	action_sh_t Play(Manager *const mngr, action_sh_t act, mail::ptr_t m);
-    action_sh_t Service(Manager *const mngr, action_sh_t act, uint32_t tick);
+	akva::ctx::ptr_t Play(Manager *const mngr, akva::ctx::ptr_t c, graph::ptr_t g);
+    akva::ctx::ptr_t Service(Manager *const mngr, akva::ctx::ptr_t c, uint32_t tick);
 	std::string tag() const;
 
 private:
-	boost::random::mt19937 rng_;
+	std::mt19937 rng_;
 	std::vector< uint8_t > payload_;
 
 	uint32_t nums_;
@@ -73,24 +69,11 @@ int main(int argc, char* argv[]){
 		// 0) load options
 		po::options_description desc("Generic options");
 		desc.add_options()
-			("source,s", po::value< std::string >(), "source dir")
-			("seed,k", po::value< uint32_t >(), "user seed")
-			("destination,d", po::value< std::string >(), "destination dir");
+			("seed,k", po::value< uint32_t >(), "user seed");
 
 		po::variables_map vm;
 		po::store(po::parse_command_line(argc, argv, desc), vm);
 		po::notify(vm);
-
-		fs::path source_dir("."), destination_dir(".");
-	    if(vm.count("source")){
-			std::string dir = vm["source"].as< std::string >();
-			source_dir = fs::path(dir);
-	    }
-
-	    if(vm.count("destination")){
-			std::string dir = vm["destination"].as< std::string >();
-			destination_dir = fs::path(dir);
-	    }
 
 		uint16_t kseed = 1;
 		if(vm.count("seed")){
@@ -99,9 +82,11 @@ int main(int argc, char* argv[]){
 
 		std::cout << "K-SEED = " << kseed << std::endl;
 		Manager tank(kseed);
-		tank.RegistrateNote< akva::notify::Notify2Console >(akva::notify::DANGER_LEVELS);
+
+		akva::RegistrateNote< akva::notify::Notify2Console >(akva::notify::DANGER_LEVELS);
 
 		auto A = tank.Build< Runner >("A");
+
 		//auto B = tank.Build< Runner >("B");
 		//auto C = tank.Build< Runner >("C");
 
@@ -135,16 +120,16 @@ Runner::Runner(Manager *const mngr, const std::string& tag)
     }
 }
 
-action_sh_t Runner::Play(Manager *const mngr, action_sh_t act, mail::ptr_t m){
+akva::ctx::ptr_t Runner::Play(Manager *const mngr, akva::ctx::ptr_t c, graph::ptr_t m){
 	auto gr = m->hdr()->group;
 	if(gr != 400)
-		return action_sh_t();
+		return akva::ctx::ptr_t();
 
 	auto bs = m->bytes();
 	auto hs = m->hash_value();
 	size_t sz = 0;
 
-	std::list< message_t > msgs = mngr->Unpack(m);
+	std::list< Message > msgs = mngr->Unpack(m);
 	for(auto& msg : msgs){
 		sz += msg.body_->len();
 		akva::MessageView v = msg.view();
@@ -174,14 +159,14 @@ action_sh_t Runner::Play(Manager *const mngr, action_sh_t act, mail::ptr_t m){
 	ss << " -> " << __FUNCTION__;
 	std::cout << ss.str() << std::endl;
 
-	return action_sh_t();
+	return akva::ctx::ptr_t();
 }
 
 std::string Runner::tag() const{
 	return tag_;
 }
 
-action_sh_t Runner::Service(Manager *const mngr, action_sh_t act, uint32_t tick){
+akva::ctx::ptr_t Runner::Service(Manager *const mngr, akva::ctx::ptr_t c, uint32_t tick){
 	uint32_t now = mngr->tiker();
 	if((now - t0_) > 1000){
 //        std::cout << tag() << " BYTES:" << std::setw(10) << transfered_.first << " COUNTS:" << std::setw(3) << transfered_.second << std::endl;
@@ -190,5 +175,5 @@ action_sh_t Runner::Service(Manager *const mngr, action_sh_t act, uint32_t tick)
 		t0_ = now;
 	}
 
-	return action_sh_t();
+	return akva::ctx::ptr_t();
 }

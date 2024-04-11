@@ -1,9 +1,7 @@
 #pragma once
-#ifndef ENGINE_BLOCK_INTERFACE_H_
-#define ENGINE_BLOCK_INTERFACE_H_
-
 #include <cstdint>
 #include <utility>
+#include <cstring>
 
 #include <boost/thread/lock_guard.hpp>
 
@@ -27,6 +25,44 @@ struct IAllocator{
 	virtual uint64_t bytes() const = 0;
 	virtual pointer_t hot() const = 0;
 };
+
+namespace mem{
+#pragma pack(push, 4)
+
+struct UniMessage{
+	enum: uint64_t{
+		MASK_LOG = 0xffffffffffc00000,
+		MASK_POS = 0x00000000003fffc0,
+		MASK_SHIFT = 0x000000000000003f
+	};
+
+	uint64_t shift : 6, pos : 16, log : 42;
+
+	inline UniMessage(){
+		shift = 0;
+		pos = 0;
+		log = 0;
+	}
+
+	inline uint64_t Pack() const{
+		uint64_t message(0);
+		memcpy(&message, this, sizeof(message));
+		return message;
+	}
+
+	inline bool UnPack(uint64_t message){
+		if(message > 0){
+			memcpy(this, &message, sizeof(message));
+			return true;
+		}
+		else
+			return false;
+	}
+};
+
+#pragma pack(pop)
+
+} // namespace mem
 
 struct WithOutLock{
 	inline void init(){}
@@ -125,5 +161,4 @@ uint16_t Allocator< spaceT, guardT >::basket(uint64_t marker) const{
 }
 
 } // akva
-#endif // ENGINE_BLOCK_INTERFACE_H_
 

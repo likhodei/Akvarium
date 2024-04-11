@@ -1,19 +1,13 @@
 #pragma once
-#ifndef ENGINE_REGULAR_REGISTR_H_
-#define ENGINE_REGULAR_REGISTR_H_
-
-#include "block_interface.hpp"
-#include "block_environment.hpp"
-
+#include <memory>
 #include <boost/predef.h>
 
 #if defined(BOOST_OS_WINDOWS)
 #include <Windows.h>
 #endif
 
-#include <vector>
-#include <set>
-#include <map>
+#include "allocator.hpp"
+#include "memory.hpp"
 
 namespace akva{
 namespace mem{
@@ -61,8 +55,8 @@ public:
 protected:
 	SpaceCtrl* ctrl_;
 
-	boost::scoped_ptr< boost::interprocess::mapped_region > region_;
-	boost::scoped_ptr< boost::interprocess::windows_shared_memory > shm_;
+	std::unique_ptr< boost::interprocess::mapped_region > region_;
+	std::unique_ptr< boost::interprocess::windows_shared_memory > shm_;
 	std::string name_;
 };
 
@@ -85,8 +79,8 @@ public:
 	RegularRegistr(uint16_t magic, uint32_t basket_size = 0xffff);
 	~RegularRegistr();
 
-	std::pair< void*, uint64_t > Write(uint64_t marker = 0); // WRITE
-	std::pair< void*, uint64_t > Read(uint64_t marker); // READ
+	std::pair< void*, uint64_t > Write(uint64_t marker = 0);
+	std::pair< void*, uint64_t > Read(uint64_t marker);
 	bool Free(uint64_t marker); // COMPLITE
 
 	void* at(uint64_t marker); // pointer
@@ -126,5 +120,4 @@ private:
 
 } // mem
 } // akva
-#endif // ENGINE_REGULAR_REGISTR_H_
 

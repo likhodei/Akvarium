@@ -1,31 +1,23 @@
 #include "regular_registr.hpp"
 
+#include <iostream>
+#include <memory>
+#include <stdexcept>
+#include <algorithm>
+#include <sstream>
+#include <iomanip>
+
 #include <malloc.h>
 
-#include <boost/make_shared.hpp>
 #include <boost/thread/locks.hpp>
 #include <boost/thread.hpp>
-
-#include <boost/shared_ptr.hpp>
 #include <boost/lexical_cast.hpp>
-#include <boost/make_shared.hpp>
-
 #include <boost/interprocess/shared_memory_object.hpp>
 #include <boost/interprocess/mapped_region.hpp>
 #include <boost/interprocess/sync/scoped_lock.hpp>
 #include <boost/interprocess/windows_shared_memory.hpp>
 #include <boost/random/uniform_real_distribution.hpp>
-
 #include <boost/intrusive/circular_list_algorithms.hpp>
-
-#include <iostream>
-
-#include <memory>
-#include <stdexcept>
-#include <algorithm>
-
-#include <sstream>
-#include <iomanip>
 
 namespace ipc = boost::interprocess;
 
@@ -57,7 +49,6 @@ static int fn_first_bit_index(uint64_t* value){
 #if defined(_MSC_VER)
 # pragma warning(pop) // Restore warnings to previous state.
 #endif
-
 
 struct NodeListTraits{
 	typedef Node node;
@@ -116,7 +107,7 @@ std::pair< SpaceBlock*, void* > SharedSpace::get(uint32_t index){
 // +++ SpaceMaster +++
 
 SpaceMaster::SpaceMaster(uint16_t magic, uint32_t basket_size)
-	: SharedSpace(magic, "space", basket_size){
+: SharedSpace(magic, "space", basket_size){
 	try{
 		region_.reset(new ipc::mapped_region(*(shm_.get()), ipc::read_write));
 		//get the address of the mapped region
@@ -145,7 +136,7 @@ SpaceMaster::SpaceMaster(uint16_t magic, uint32_t basket_size)
 // +++ SpaceSlave +++
 
 SpaceSlave::SpaceSlave(uint16_t shift, uint32_t basket_size)
-	: SharedSpace(shift, "space", basket_size){
+: SharedSpace(shift, "space", basket_size){
 	try{
 		auto pg = ipc::mapped_region::get_page_size();
 		auto tb = bytes();
@@ -175,7 +166,7 @@ SpaceSlave::SpaceSlave(uint16_t shift, uint32_t basket_size)
 // +++ RegularRegistr +++
 
 RegularRegistr::RegularRegistr(uint16_t magic, uint32_t basket_size)
-	: CoreSpace(this), master_(magic & SharedSpace::MAGIC_SHIFT_MASK), BASKET_SIZE(basket_size), correct_(0), hp_(nullptr), bias_(0){
+: CoreSpace(this), master_(magic & SharedSpace::MAGIC_SHIFT_MASK), BASKET_SIZE(basket_size), correct_(0), hp_(nullptr), bias_(0){
 	MASTER_MASK = ((uint64_t)1 << master_);
 
 	hp_ = HeapCreate(HEAP_NO_SERIALIZE, 0x01000, 0);

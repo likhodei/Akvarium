@@ -1,18 +1,22 @@
 #include "manager.hpp"
-#include "driver.hpp"
-
-#include "support/logger.hpp"
-
-#include <boost/chrono/system_clocks.hpp>
-#include <boost/chrono/chrono_io.hpp>
-#include <boost/bind.hpp>
-#include <boost/assert.hpp>
 
 #include <locale>
 #include <cstdlib>
 #include <iostream>
 #include <sstream>
 #include <iomanip>
+#include <functional>
+#include <cstddef>
+#include <cmath>
+
+#include <boost/chrono/system_clocks.hpp>
+#include <boost/chrono/chrono_io.hpp>
+#include <boost/bind.hpp>
+#include <boost/assert.hpp>
+#include <boost/thread.hpp>
+
+#include "driver.hpp"
+#include "engine/logger.hpp"
 
 using namespace akva;
 using engine::Regedit;
@@ -46,11 +50,11 @@ Manager::Manager(uint16_t kseed, const std::string& environment)
 
 	tick_ = impl_->tiker();
 
-	tube_ = boost::make_shared< Tube >(this);
-	pipe_ = boost::make_shared< Pipe >(this, MAGIC);
+	tube_ = std::make_shared< Tube >(this);
+	pipe_ = std::make_shared< Pipe >(this, MAGIC);
 
 	timer_.expires_at(boost::asio::chrono::steady_clock::now());
-	timer_.async_wait(boost::bind(&Manager::Loop, this));
+	timer_.async_wait(std::bind(&Manager::Loop, this));
 }
 
 Manager::~Manager(){
@@ -78,14 +82,16 @@ uint16_t Manager::GenMagic() const{
 
 int Manager::Run(int argc, char* argv[]){
 	boost::asio::io_service::work work(io_);
-	boost::thread th(boost::bind(&boost::asio::io_service::run, boost::ref(io_)));
+
+	std::thread th(boost::bind(&boost::asio::io_service::run, boost::ref(io_)));
+
 	impl_->Run(this);
 	th.join();
 	return EXIT_SUCCESS;
 }
 
-int Manager::Exec(Pipeline* line, action_sh_t act){
-	strand_.post(boost::bind(&Action::operator(), act, this, line));
+int Manager::Exec(Pipeline* line, ctx::ptr_t c){
+	strand_.post(boost::bind(&Context::operator(), c, this, line));
 	return EXIT_SUCCESS;
 }
 
@@ -166,8 +172,9 @@ void Manager::Loop(){
 		memset(prefer_.data(), 0, prefer_.size() * sizeof(uint16_t));
         for(auto r : reg()->world()){
 			if(r->ok()){
-				if(std::abs< ptrdiff_t >(t.first - r->tmark_) > BUZY_NODE_LIMIT)
+				if(std::abs< ptrdiff_t >(t.first - r->tmark_) > BUZY_NODE_LIMIT){
 					guilty_.insert(r->magic_);
+				}
 				else{
 					prefer_[Regedit::IxByMagic(r->magic_)] = r->magic_;
 				}
@@ -213,16 +220,16 @@ void Manager::Loop(){
 	}
 
 	if(leader()){
-		if((t.first - tick_) > SERVICE_UPDATE){ 
+		if(std::abs< ptrdiff_t >(t.first - tick_) > SERVICE_UPDATE){ 
 			akva::tmark_t x = std::make_pair(tick_, 0);
-			impl_->Exec(x, boost::make_shared< cmd::Service >(x));
+			impl_->Exec(x, std::make_shared< cmd::Service >(x));
 			tick_ += SERVICE_UPDATE;
 		}
 	}
 	else
 		tick_ = t.first;
 
-	impl_->Exec(t, boost::make_shared< cmd::Overwatch >(t));
+	impl_->Exec(t, std::make_shared< cmd::Overwatch >(t));
 	timer_.expires_at(timer_.expiry() + boost::asio::chrono::milliseconds(REFRESH_INTERVAL));
 	timer_.async_wait(boost::bind(&Manager::Loop, this));
 }
@@ -231,13 +238,13 @@ bool Manager::connected() const{
 	return pipe_->connected() && tube_->connected();
 }
 
-void Manager::Broadcast(mail::ptr_t m, bool local){
+void Manager::Broadcast(graph::ptr_t m, bool local){
 	auto t = impl_->HistoryTiker();
-	impl_->Exec(nullptr, t, boost::make_shared< cmd::Transfer >(local), m);
+	impl_->Exec(nullptr, t, std::make_shared< cmd::Transfer >(local), m);
 }
 
-std::list< message_t > Manager::Unpack(mail::ptr_t m){
-	std::list< message_t > msgs;
+std::list< Message > Manager::Unpack(graph::ptr_t m){
+	std::list< Message > msgs;
 	impl_->Unpack(m, msgs);
 	return std::move(msgs);
 }
@@ -261,6 +268,6 @@ void Manager::Refresh(uint64_t users){
 void Manager::Service(Pipeline *const line, uint32_t tick)
 { }
 
-void Manager::Play(Pipeline *const line, mail::ptr_t m)
+void Manager::Play(Pipeline *const line, graph::ptr_t m)
 { }
 

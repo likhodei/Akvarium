@@ -1,6 +1,10 @@
 #pragma once
-#ifndef SUPPORT_CONSOLE_HPP_
-#define SUPPORT_CONSOLE_HPP_
+#include <cstdlib>
+#include <cstdint>
+#include <iostream>
+#include <iomanip>
+#include <list>
+#include <utility>
 
 #include <boost/predef.h>
 
@@ -8,15 +12,7 @@
 #include <windows.h>
 #endif
 
-#include <cstdlib>
-#include <cstdint>
-#include <iostream>
-#include <iomanip>
-
-#include <list>
-#include <utility>
-
-namespace support_ns{
+namespace ms_notify{
 
 class Console{
 	enum eMask{
@@ -166,13 +162,10 @@ private:
 	std::list< std::pair< int, int > > colors_;
 };
     
-//narrow manipulators
 inline std::ostream& operator<< (std::ostream& os, Console& c){
     os.flush();
 	c.Flush();
 	return os;
 }
 
-} //support_ns
-
-#endif // SUPPORT_CONSOLE_HPP_
+} //ms_notify

@@ -1,14 +1,12 @@
 #pragma once
-#ifndef ENGINE_PROTOCOL_H_
-#define ENGINE_PROTOCOL_H_
-
-#include "block.hpp"
-#include "support/simple_block.hpp"
-
 #include <cstdint>
 #include <deque>
 
+#include "frame.hpp"
+#include "block.hpp"
+
 namespace akva{
+
 #pragma pack(push, 4)
 struct AkvaHdr{
 	uint16_t counter;
@@ -129,7 +127,7 @@ void AkvaWriter< allocatorT >::Write(uint16_t type, uint8_t* data, uint16_t len)
     fb->spec = type;
     f->set_offset_wr_ptr(sizeof(AkvaBody));
 
-    uint16_t bytes = DataFrame::ceil4(len) << 2; // normalize
+    uint16_t bytes = Frame::ceil4(len) << 2; // normalize
     uint16_t writed(0);
     while(writed < bytes){
         bool alloc = (f->space() == 0) ? true : false;
@@ -168,5 +166,4 @@ void AkvaWriter< allocatorT >::Write(uint16_t type, uint8_t* data, uint16_t len)
 
 } // engine
 } // akva
-#endif // ENGINE_PROTOCOL_H_ 
 

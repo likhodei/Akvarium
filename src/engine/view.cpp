@@ -1,17 +1,17 @@
-#include "message.hpp"
+#include "view.hpp"
 
 using namespace akva;
 
 // +++ FrameView +++
 
-FrameView::FrameView(burst_frame_ptr_t frame)
+FrameView::FrameView(burst_ptr_t frame)
 : fr_(frame), ptr_(nullptr){
 	if(fr_->fractional()){
 		uint16_t l = fr_->len();
 		ptr_ = new uint8_t[l];
 
 		uint16_t offset(0);
-		for(BurstFrame *more = fr_.get(); more; more = more->cont()){
+		for(Burst *more = fr_.get(); more; more = more->cont()){
 			auto sz = std::min< uint16_t >(l - offset, more->size());
 			memcpy(ptr_ + offset, more->ptr(), sz);
 			offset += sz;
@@ -41,11 +41,11 @@ uint16_t FrameView::length() const{
 Message::Message()
 { }
 
-Message::Message(burst_frame_ptr_t body)
+Message::Message(burst_ptr_t body)
 : body_(body)
 { }
 
-Message::Message(uint16_t size, data_frame_ptr_t data){
+Message::Message(uint16_t size, frame_ptr_t data){
 	data->Make(body_, size);
 	BOOST_ASSERT(body_);
 }
@@ -84,14 +84,14 @@ bool Message::ok() const{
 
 // +++ MessageView +++
 
-MessageView::MessageView(burst_frame_ptr_t frame)
+MessageView::MessageView(burst_ptr_t frame)
 : fr_(frame), ptr_(nullptr){
 	if(fr_->fractional()){
 		uint16_t l = fr_->len();
 		ptr_ = new uint8_t[l];
 
 		uint16_t offset(0);
-		for(BurstFrame *more = fr_.get(); more; more = more->cont()){
+		for(Burst *more = fr_.get(); more; more = more->cont()){
 			auto sz = std::min< uint16_t >(l - offset, more->size());
 			memcpy(ptr_ + offset, more->ptr(), sz);
 			offset += sz;

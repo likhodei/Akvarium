@@ -1,16 +1,15 @@
-#include "block_environment.hpp"
-
-#include <malloc.h>
-
-#include <boost/intrusive/circular_list_algorithms.hpp>
+#include "memory.hpp"
 
 #include <memory>
 #include <stdexcept>
 #include <algorithm>
-
 #include <iostream>
 #include <sstream>
 #include <iomanip>
+
+#include <malloc.h>
+
+#include <boost/intrusive/circular_list_algorithms.hpp>
 
 namespace akva{
 namespace mem{
@@ -31,7 +30,7 @@ typedef boost::intrusive::circular_list_algorithms< NodeListTraits > AlgoN;
 // +++ EasySpace +++
 
 EasySpace::EasySpace(size_t blocks, size_t size)
-	: CoreSpace(this), CAPACITY(size), seq_(1){
+: CoreSpace(this), CAPACITY(size), seq_(1){
 	hp_ = HeapCreate(HEAP_NO_SERIALIZE, 0x01000, 0);
 
 	memset(&head_, 0, sizeof(head_));

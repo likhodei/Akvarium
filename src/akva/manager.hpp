@@ -1,25 +1,23 @@
 #pragma once
-#ifndef AKVARIUM_MANAGER_H_
-#define AKVARIUM_MANAGER_H_
+#include <memory>
+#include <cstdint>
+#include <string>
+#include <thread>
+#include <map>
 
-#include "akva.hpp"
-#include "action.hpp"
+#include <boost/asio.hpp>
+#include <boost/asio/steady_timer.hpp>
+#include <boost/chrono/time_point.hpp>
+#include <boost/thread/once.hpp>
 
 #include "engine/regedit.hpp"
 #include "engine/regular_registr.hpp"
 #include "engine/spin_lock.hpp"
 #include "engine/protocol.hpp"
-#include "support/notify_backend.hpp"
+#include "engine/notification.hpp"
 
-#include <boost/asio.hpp>
-#include <boost/asio/steady_timer.hpp>
-#include <boost/chrono/time_point.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/thread/once.hpp>
-
-#include <cstdint>
-#include <string>
-#include <map>
+#include "akva.hpp"
+#include "context.hpp"
 
 namespace akva{
 
@@ -27,15 +25,16 @@ class Driver;
 
 struct IDriver{
 	virtual INotification *const notify() = 0;
+	virtual void Add(INotification *const note) = 0;
 
     virtual void Attach(Pipeline *const line) = 0; 
 	virtual void Detach(Pipeline *const line) = 0;
 
 	virtual uint16_t Reset(const std::string& environment, uint16_t kseed) = 0;
-	virtual void Exec(Pipeline* line, tmark_t t, action_sh_t act, mail::ptr_t m) = 0;
+	virtual void Exec(Pipeline* line, tmark_t t, ctx::ptr_t act, graph::ptr_t m) = 0;
 	virtual uint16_t Overwatch(tmark_t tick, Manager *const mngr) = 0;
 
-	virtual message_t Message(uint16_t size) = 0;
+	virtual Message MakeMessage(uint16_t size) = 0;
 
 	virtual uint32_t tiker() const = 0;
 	virtual tmark_t HistoryTiker() = 0;
@@ -50,9 +49,6 @@ struct IDriver{
 };
 
 class Manager{
-	typedef boost::shared_ptr< Tube > tube_sh_t;
-	typedef boost::shared_ptr< Pipe > pipe_sh_t;
-
 public:
 	typedef buffer_ptr_t block_ptr_t;
 
@@ -73,25 +69,20 @@ public:
 
 	INotification *const notify();
 
-	template < class noteT, typename ... T >
-	void RegistrateNote(T ... args){
-		impl_->RegistrateNote(new noteT(args ...));
-	}
-
 	template < typename M, typename ... T >
 	std::unique_ptr< M > Build(const T& ... args){
 		return std::make_unique< M >(static_cast< M::manager_t *const >(this), args ...);
 	}
 
 	template < typename T >
-	mail::ptr_t Pack(mail::type_t type, uint16_t spec, const T& msgs){
-        mail::ptr_t m = boost::make_shared< mail::Mail >(spec, type);
+	graph::ptr_t Pack(graph::type_t type, uint16_t spec, const T& msgs){
+        graph::ptr_t m = std::make_shared< graph::Graph >(spec, type);
         if(!msgs.empty()){
-            std::list< data_frame_ptr_t > to;
+            std::list< frame_ptr_t > to;
             for(auto& msg : msgs){
-                burst_frame_ptr_t c = msg.body_;
+                burst_ptr_t c = msg.body_;
                 while(c){
-                    data_frame_ptr_t d = c->data();
+                    frame_ptr_t d = c->data();
                     if(to.empty() || (to.back()->key() != d->key())){
                         to.push_back(d);
                     }
@@ -103,7 +94,7 @@ public:
             m->Append(to);
         }
 
-		// fill mail header
+		// fill graph header
         auto t = Manager::app()->HistoryTiker();
         m->hdr()->tmark = t.first;
         m->hdr()->number = t.second;
@@ -112,7 +103,7 @@ public:
 		return m;
 	}
 
-	std::list< message_t > Unpack(mail::ptr_t m);
+	std::list< Message > Unpack(graph::ptr_t m);
 
 	bool connected() const;
 	bool stopped() const;
@@ -129,11 +120,12 @@ public:
 	Pipeline* pipeline();
 
 	int Run(int argc, char* argv[]);
-	int Exec(Pipeline* line, action_sh_t act);
+	int Exec(Pipeline* line, ctx::ptr_t c);
 	bool leader() const;
 
     virtual void Service(Pipeline *const line, uint32_t tick);
-	virtual void Play(Pipeline *const line, mail::ptr_t m);
+	virtual void Play(Pipeline *const line, graph::ptr_t m);
+
 	boost::asio::io_service& io();
 
 	void Direct(buffer_ptr_t b);
@@ -141,7 +133,7 @@ public:
 	const uint16_t MAGIC;
 
 	engine::Regedit *const reg();
-	void Broadcast(mail::ptr_t m, bool local = false);
+	void Broadcast(graph::ptr_t m, bool local = false);
 
 protected:
 	void Loop();
@@ -155,8 +147,9 @@ protected:
 	boost::asio::io_service::strand strand_;
 
 	uint16_t kseed_;
-	pipe_sh_t pipe_;
-	tube_sh_t tube_;
+	std::shared_ptr< Tube > tube_;
+	std::shared_ptr< Pipe > pipe_;
+
 	uint32_t tick_;
 
 public:
@@ -167,6 +160,10 @@ public:
 	static boost::once_flag flag_;
 };
 
+template < class noteT, typename ... T >
+void RegistrateNote(T ... args){
+	Manager::app()->Add(new noteT(args ...));
+}
+
 } // akva
-#endif // AKVARIUM_MANAGER_H_
 

@@ -1,6 +1,6 @@
 @echo off
 
-set TYPE=vs2019
+set TYPE=vs2022
 set ROOT_DIR=.\
 set SOLUTION_NAME=Akvarium
 
@@ -18,6 +18,8 @@ if not exist %BUILD_DIR% (
 	mkdir %BUILD_DIR%
 )
 
+MKLINK /H /J "%script_dir%/include/mshadow" "3rdparty/mshadow/mshadow" 
+
 cd %BUILD_DIR%
 
 cmake ^
@@ -26,7 +28,7 @@ cmake ^
 -DBOOST_LIBRARYDIR=c:/LIBRARIES/Boost/stage/lib ^
 -DRAPIDJSON_ROOT=c:/LIBRARIES/RapidJson ^
 -DTEST_ROOT=c:/LIBRARIES ^
--G "Visual Studio 16 2019" ^
+-G "Visual Studio 17 2022" ^
 %script_dir%
 
 rem -G "Visual Studio 16 2019" -A Win32 ^

@@ -1,12 +1,12 @@
 #include "regedit.hpp"
 
-#include <boost/thread.hpp>
-#include <boost/interprocess/sync/file_lock.hpp>
-#include <boost/interprocess/detail/os_thread_functions.hpp>
-
-#include <boost/filesystem.hpp>
 #include <sstream>
 #include <iomanip>
+#include <thread>
+
+#include <boost/interprocess/sync/file_lock.hpp>
+#include <boost/interprocess/detail/os_thread_functions.hpp>
+#include <boost/filesystem.hpp>
 
 namespace akva{
 
@@ -23,7 +23,7 @@ namespace fs = boost::filesystem;
 // +++ SharedLock +++
 
 SharedLock::SharedLock(ipc::file_handle_t pfile)
-	: locked_(false), pfile_(pfile){
+: locked_(false), pfile_(pfile){
 	locked_ = ipc::ipcdetail::acquire_file_lock_sharable(pfile_);
 }
 
@@ -38,9 +38,9 @@ bool SharedLock::locked() const{
 // +++ ScopedLock +++
 
 ScopedLock::ScopedLock(ipc::file_handle_t pfile)
-	: pfile_(pfile){
+: pfile_(pfile){
 	while(!ipc::ipcdetail::acquire_file_lock(pfile_)){
-		boost::this_thread::yield();
+		std::this_thread::yield();
 	}
 }
 
@@ -51,7 +51,7 @@ ScopedLock::~ScopedLock(){
 // +++ Regedit +++
 
 Regedit::Regedit(const std::string& environment, uint32_t pid)
-	: impl_(new RegTable(this)), rlog_(0, 0), PID(pid), rng_(pid){
+: impl_(new RegTable(this)), rlog_(0, 0), PID(pid), rng_(pid){
 	guard_.init();
 	memset(w2_, 0, sizeof(w2_));
 	impl_->Init(environment);
@@ -63,7 +63,7 @@ Regedit::~Regedit(){
 }
 
 uint16_t Regedit::GenMagic(uint16_t seed){
-	boost::random::uniform_int_distribution< > gen(0, 0xffff);
+	std::uniform_int_distribution< > gen(0, 0xffff);
 	if(seed > MAGIC_SHIFT_MASK){ // fix: data race
 		do{
 			seed = IxByMagic(gen(rng_));
@@ -87,7 +87,7 @@ uint16_t Regedit::IxByMagic(uint16_t magic){
 std::set< uint16_t > Regedit::MagicsByPID(uint32_t pid){
 	std::set< uint16_t > ixs;
 	for(const auto& w : w2_){
-		boost::lock_guard< MicroSpinLock > lk(guard_);
+		std::lock_guard< MicroSpinLock > lk(guard_);
 
 		if(w.ok() && (w.pid_ == pid)){
 			ixs.insert(w.magic_);
@@ -99,7 +99,7 @@ std::set< uint16_t > Regedit::MagicsByPID(uint32_t pid){
 Regedit::log_record_t Regedit::Log() const{
 	log_record_t lg(0, 0);
 	for(const auto& w : w2_){
-		boost::lock_guard< MicroSpinLock > lk(guard_);
+		std::lock_guard< MicroSpinLock > lk(guard_);
 
 		if(w.ok()){
 			lg.first += w.log_;   // log
@@ -166,7 +166,7 @@ void Regedit::Refresh(uint16_t magic, uint32_t tmark){
 std::vector< Register* > Regedit::world(){
 	std::vector< Register* > world;
 	for(Register *b = w2_, *e = w2_ + MAX_RECORD_COUNT; b < e; ++b){
-		boost::lock_guard< MicroSpinLock > lk(guard_);
+		std::lock_guard< MicroSpinLock > lk(guard_);
 		if(b->ok())
 			world.push_back(b);
 	}
@@ -223,7 +223,7 @@ void Regedit::Update(const Register& r){
 // +++ RegTable +++
 
 RegTable::RegTable(Regedit *const reg)
-	: reg_(reg), pfile_(ipc::ipcdetail::invalid_file()){
+: reg_(reg), pfile_(ipc::ipcdetail::invalid_file()){
 	guard_.init();
 	memset(w2_, 0, sizeof(w2_));
 }
@@ -287,7 +287,7 @@ void RegTable::Merge(uint16_t magic, uint32_t tmark){
 		W2(pfile_);
 	}
 	{ // save
-		boost::lock_guard< MicroSpinLock > lk(guard_);
+		std::lock_guard< MicroSpinLock > lk(guard_);
 		for(auto r : commits_){
 			auto i = Regedit::IxByMagic(r->magic_);
 			if(w2_[i].log_ < r->log_){
@@ -340,7 +340,7 @@ Register* RegTable::Load(uint16_t index){
 
 Register* RegTable::Commit(Register* r){
 	{ // safe
-		boost::lock_guard< MicroSpinLock > lk(guard_);
+		std::lock_guard< MicroSpinLock > lk(guard_);
 		commits_.push_back(r);
 	}
 	return r;

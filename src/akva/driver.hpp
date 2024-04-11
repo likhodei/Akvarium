@@ -1,29 +1,22 @@
 #pragma once
-#ifndef AKVARIUM_DRIVER_H_
-#define AKVARIUM_DRIVER_H_
+#include <cstdint>
+#include <vector>
+#include <string>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+
+#include <boost/chrono/time_point.hpp>
+#include <boost/date_time/posix_time/posix_time.hpp>
+#include <boost/heap/priority_queue.hpp>
 
 #include "akva.hpp"
-#include "action.hpp"
+#include "context.hpp"
 #include "manager.hpp"
 
 #include "engine/spin_lock.hpp"
 #include "engine/regedit.hpp"
-#include "support/notify_backend.hpp"
-
-#include <boost/chrono/time_point.hpp>
-#include <boost/scoped_ptr.hpp>
-#include <boost/date_time/posix_time/posix_time.hpp>
-#include <boost/heap/priority_queue.hpp>
-
-#include <boost/thread.hpp>
-#include <boost/thread/condition_variable.hpp>
-#include <boost/thread/mutex.hpp>
-#include <boost/atomic.hpp>
-
-#include <cstdint>
-#include <vector>
-#include <deque>
-#include <string>
+#include "engine/notification.hpp"
 
 namespace akva{
 
@@ -64,8 +57,8 @@ struct Task{
 	uint64_t marker_;
 
 	tmark_t t_;
-	action_sh_t act_;
-	mail::ptr_t m_;
+	ctx::ptr_t act_; // c_
+	graph::ptr_t m_; // g_
 
 	void Put(Worker *);
 	void Del(Worker *);
@@ -90,45 +83,46 @@ public:
 
 	typedef Allocator< mem::RegularRegistr, engine::MicroSpinLock > remote_allocator_t;
 
-	uint16_t Reset(const std::string& environment, uint16_t kseed);
-	void Exec(Pipeline* line, tmark_t t, action_sh_t act, mail::ptr_t m);
-	void Exec(tmark_t t, action_sh_t act);
+	uint16_t Reset(const std::string& environment, uint16_t kseed) override;
+	void Exec(Pipeline* line, tmark_t t, ctx::ptr_t c, graph::ptr_t g) override;
+	void Exec(tmark_t t, ctx::ptr_t act);
 
 	engine::Regedit *const reg();
-	INotification *const notify();
+	INotification *const notify() override;
 
 	bool stopped() const;
 
-    void Attach(Pipeline *const line); 
-	void Detach(Pipeline *const line);
+    void Attach(Pipeline *const line) override; 
+	void Detach(Pipeline *const line) override;
 
-	void Terminate();
-	void Status();
+	void Terminate() override;
+	void Status() override;
 
-	uint32_t tiker() const;
+	uint32_t tiker() const override;
 	uint64_t tiker64() const;
-	std::pair< uint32_t, uint16_t > HistoryTiker();
+	std::pair< uint32_t, uint16_t > HistoryTiker() override;
 
-	uint16_t Overwatch(tmark_t tick, Manager *const mngr);
-	void RegistrateNote(INotification *const note);
+	uint16_t Overwatch(tmark_t tick, Manager *const mngr) override;
+	void Add(INotification *const note) override;
 
 	static void Init(); // todo: env params
 
-	bool leader() const;
+	bool leader() const override;
 	Pipeline* pipeline();
 
-	message_t Message(uint16_t size);
+	Message MakeMessage(uint16_t size) override;
 
-	void Unpack(mail::ptr_t m, std::list< message_t >& msgs);
+	void Unpack(graph::ptr_t m, std::list< Message >& msgs);
 
 	void Refresh(uint64_t users);
 	void Run(Manager *const mngr);
 
 protected:
-	std::string tag() const;
-    action_sh_t Service(Manager *const mngr, action_sh_t act, uint32_t tick);
-	action_sh_t Play(Manager *const mngr, action_sh_t act, mail::ptr_t m);
-	uint16_t magic() const;
+	std::string tag() const override;
+    ctx::ptr_t Service(Manager *const mngr, ctx::ptr_t c, uint32_t tick) override;
+	ctx::ptr_t Play(Manager *const mngr, ctx::ptr_t c, graph::ptr_t m) override;
+	uint16_t magic() const override;
+
 	void statistica(std::stringstream& ss);
 	bool no_tasks();
 
@@ -137,22 +131,23 @@ protected:
 	uint16_t leader_; // his magic 
 	uint16_t magic_;
 
-	boost::scoped_ptr< engine::Regedit > reg_;
+	std::unique_ptr< engine::Regedit > reg_;
     boost::posix_time::ptime tbase_; // timestemp (1970.01.01)
 
 	std::vector< INotification* > notes_;
-	notify::NotifyBackend notify_;
+	notify::Backend notify_;
 
-	boost::mutex mut_;
-	boost::condition_variable cond_;
+	std::mutex mut_;
+	std::condition_variable cond_;
+
 	std::vector< Worker* > workers_;
 	Task jobs_;
 
-	boost::random::mt19937 rng_;
+	std::mt19937 rng_;
 	int task_seq_;
 
 	volatile uint64_t tmark_;
-	boost::atomic_int tseq_;
+	std::atomic_int tseq_;
 
 	uint64_t seq4to_;
 	remote_allocator_t* remote_;
@@ -161,5 +156,4 @@ protected:
 };
 
 } // namespace akva
-#endif // AKVARIUM_DRIVER_H_
 

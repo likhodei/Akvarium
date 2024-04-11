@@ -1,43 +1,38 @@
 #pragma once
-#ifndef AKVARIUM_H_
-#define AKVARIUM_H_
-
-#include "engine/buffer.hpp"
-#include "engine/message.hpp"
-#include "engine/block_environment.hpp"
-#include "engine/spin_lock.hpp"
-#include "engine/protocol.hpp"
-
-#include "action.hpp"
-#include "declaration.hpp"
-
-#include <boost/asio.hpp>
-#include <boost/enable_shared_from_this.hpp>
-#include <boost/make_shared.hpp>
-
 #include <cstdint>
 #include <list>
 #include <string>
+#include <map>
 #include <set>
+#include <memory>
+
+#include <boost/asio.hpp>
+
+#include "engine/buffer.hpp"
+#include "engine/view.hpp"
+#include "engine/memory.hpp"
+#include "engine/spin_lock.hpp"
+#include "engine/protocol.hpp"
+
+#include "context.hpp"
+#include "declaration.hpp"
 
 namespace akva{
-
-typedef Message message_t;
 
 class Manager;
 
 struct Pipeline{
 	Pipeline();
 
-	virtual action_sh_t Service(Manager *const mngr, action_sh_t act, uint32_t tick);
-	virtual action_sh_t Play(Manager *const mngr, action_sh_t act, mail::ptr_t m);
-	virtual void Complite(Manager *const mngr, mail::ptr_t m);
+	virtual ctx::ptr_t Service(Manager *const mngr, ctx::ptr_t c, uint32_t tick);
+	virtual ctx::ptr_t Play(Manager *const mngr, ctx::ptr_t c, graph::ptr_t m);
+	virtual void Complite(Manager *const mngr, graph::ptr_t m);
 
 	virtual std::string tag() const = 0;
 
-	mail::ptr_t Broadcast(Manager *const mngr, mail::type_t type, uint16_t spec, const std::list< message_t >& msgs);
-	mail::ptr_t Broadcast(Manager *const mngr, mail::type_t type, uint16_t spec, const std::list< message_t >& msgs, action_sh_t act);
-	mail::ptr_t WaitAnnonce(mail::ptr_t m, action_sh_t act);
+	graph::ptr_t Broadcast(Manager *const mngr, graph::type_t type, uint16_t spec, const std::list< Message >& msgs);
+	graph::ptr_t Broadcast(Manager *const mngr, graph::type_t type, uint16_t spec, const std::list< Message >& msgs, ctx::ptr_t c);
+	graph::ptr_t WaitAnnonce(graph::ptr_t m, ctx::ptr_t c);
 	buffer_ptr_t MakeData();
 
 	virtual void statistica(std::stringstream& ss);
@@ -49,15 +44,15 @@ struct Pipeline{
 	Pipeline *next_;
 	Pipeline *prev_;
 
-	bool filter(mail::ptr_t m);
+	bool filter(graph::ptr_t m);
 
 protected:
-	std::map< size_t, action_sh_t > holds_;
+	std::map< size_t, ctx::ptr_t > holds_;
 	std::set< uint16_t > white_, black_; // filters
 	Allocator< mem::EasySpace, engine::MicroSpinLock > local_;
 };
 
-class Tube: public Pipeline, public boost::enable_shared_from_this< Tube >{
+class Tube: public Pipeline, public std::enable_shared_from_this< Tube >{
 public:
 	enum{
 		MAX_LINK_COUNT = 64,
@@ -77,8 +72,8 @@ public:
 	void HandleRead(const boost::system::error_code& ec, size_t transferred, buffer_ptr_t buf);
 
 	bool connected() const;
-	std::string tag() const;
-	uint16_t magic() const;
+	std::string tag() const override;
+	uint16_t magic() const override;
 
     buffer_ptr_t Aquare();
 
@@ -92,7 +87,7 @@ private:
 	uint16_t id_;
 };
 
-class Pipe: public Pipeline, public boost::enable_shared_from_this< Pipe >{
+class Pipe: public Pipeline, public std::enable_shared_from_this< Pipe >{
 public:
 	typedef buffer_ptr_t block_ptr_t;
 
@@ -106,7 +101,7 @@ public:
 	void AsyncWrite();
 	void HandleWrite(const boost::system::error_code& ec, buffer_ptr_t buf);
 
-	action_sh_t Play(Manager *const mngr, action_sh_t act, mail::ptr_t m);
+	ctx::ptr_t Play(Manager *const mngr, ctx::ptr_t c, graph::ptr_t m) override;
 
 	bool accepted() const;
 	bool connected() const;
@@ -115,8 +110,8 @@ public:
 		return id_;
 	}
 
-	std::string tag() const;
-	uint16_t magic() const;
+	std::string tag() const override;
+	uint16_t magic() const override;
 
     buffer_ptr_t Aquare();
 	void Direct(buffer_ptr_t b);
@@ -143,8 +138,8 @@ public:
 	Akva(manager_t *const gm, uint32_t delay);
 	~Akva();
 
-	std::string tag() const;
-	uint16_t magic() const;
+	std::string tag() const override;
+	uint16_t magic() const override;
 
 	typename handlerT* from_this(){
 		return (handlerT*)this;
@@ -180,5 +175,4 @@ uint16_t Akva< handlerT, managerT >::magic() const{
 }
 
 } // akva
-#endif // AKVARIUM_H_
 

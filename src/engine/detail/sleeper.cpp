@@ -1,9 +1,12 @@
 #include "sleeper.hpp"
 
-#include <Windows.h>
-
 #include <iostream>
-#include <ctime>
+#include <boost/predef.h>
+
+#if defined(BOOST_OS_WINDOWS)
+#include <Windows.h>
+#endif
+
 
 void asm_volatile_pause(){
 #if defined(_MSC_VER) && (defined(_M_IX86) || defined(_M_X64))
@@ -11,7 +14,7 @@ void asm_volatile_pause(){
 #endif
 }
 
-int nanosleep(time_t tv_sec, long tv_nsec){
+int nanosleep(std::time_t tv_sec, long tv_nsec){
 	HANDLE timer = NULL;
 	LARGE_INTEGER sleepTime;
 

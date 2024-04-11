@@ -1,17 +1,16 @@
 #include "driver.hpp"
 
-#include "declaration.hpp"
-#include "support/logger.hpp"
-#include "engine/regular_registr.hpp"
-
-#include <boost/bind.hpp>
-#include <boost/thread/lock_guard.hpp>
-#include <boost/intrusive/circular_list_algorithms.hpp>
-
 #include <cstdlib>
 #include <iostream>
 #include <sstream>
 #include <iomanip>
+
+#include <boost/bind.hpp>
+#include <boost/intrusive/circular_list_algorithms.hpp>
+
+#include "declaration.hpp"
+#include "engine/logger.hpp"
+#include "engine/regular_registr.hpp"
 
 namespace pt = boost::posix_time;
 namespace ipc = boost::interprocess;
@@ -119,8 +118,8 @@ uint64_t Worker::On(Manager *const mngr, tmark_t now){
 
         //std::cout << "+ : " << line_->tag() << " | "  << marker_ << " : " << t.first << "-" << t.second << std::endl;
 
-        action_sh_t use = (job_->m_) ? job_->act_->Play(mngr, line_, job_->m_) : (*(job_->act_))(mngr, line_);
-		if(!use){
+        ctx::ptr_t ctx = (job_->m_) ? job_->act_->Play(mngr, line_, job_->m_) : (*(job_->act_))(mngr, line_);
+		if(!ctx){
             job_->looks_ += 1; // complite count
             job_->Del(this);
             job_ = job_->next_;
@@ -223,31 +222,31 @@ void Driver::Refresh(uint64_t users){
         remote_->space_.Update(users);
 }
 
-message_t Driver::Message(uint16_t size){
-	data_frame_ptr_t frame(new DataFrame(remote_));
-    return message_t(size, frame);
+Message Driver::MakeMessage(uint16_t size){
+	frame_ptr_t frame(new Frame(remote_));
+    return Message(size, frame);
 }
 
-void Driver::Unpack(mail::ptr_t m, std::list< message_t >& msgs){
+void Driver::Unpack(graph::ptr_t m, std::list< Message >& msgs){
 	for(auto i(0); i < m->hdr()->count; ++i){
 		auto k = m->d_[i];
 		if(remote_->is_owner(k)){
 			auto j = remote_->basket(k);
 #if 0
-			data_frame_ptr_t body(new DataFrame(k, remote_));
+			frame_ptr_t body(new Frame(k, remote_));
 			for(FrameStack* c = stack_[j].Head(body); c != nullptr; c = c->Next(body)){
 				if(c->Complited()){
-					msgs.push_back(message_t(c->Take()));
+					msgs.push_back(Message(c->Take()));
 				}
 			}
 #endif
 		}
 		else{
 			auto j = remote_->basket(k);
-			data_frame_ptr_t body(new DataFrame(k, remote_));
+			frame_ptr_t body(new Frame(k, remote_));
 			for(FrameStack* c = stack_[j].Head(body); c != nullptr; c = c->Next(body)){
 				if(c->Complited()){
-					msgs.push_back(message_t(c->Take()));
+					msgs.push_back(Message(c->Take()));
 				}
 			}
 		}
@@ -258,7 +257,7 @@ bool Driver::leader() const{
 	return leader_ == magic_ ? true : false;
 }
 
-void Driver::RegistrateNote(INotification *const note){
+void Driver::Add(INotification *const note){
     notes_.push_back(note);
     notify_.Attach(note);
 }
@@ -319,19 +318,19 @@ void Driver::Status(){
 	std::string msg = "test [" + std::to_string(++seq4to_) + "]";
 	{
 		auto t = HistoryTiker();
-		Exec(this, t, boost::make_shared< cmd::Test >(msg), mail::ptr_t());
+		Exec(this, t, std::make_shared< cmd::Test >(msg), graph::ptr_t());
 	}
 	{
 		auto t = HistoryTiker();
-		Exec(this, t, boost::make_shared< cmd::Info >(), mail::ptr_t());
+		Exec(this, t, std::make_shared< cmd::Info >(), graph::ptr_t());
 	}
 }
 
-void Driver::Exec(tmark_t t, action_sh_t act){
-	Exec(this, t, act, mail::ptr_t());
+void Driver::Exec(tmark_t t, ctx::ptr_t c){
+	Exec(this, t, c, graph::ptr_t());
 }
 
-void Driver::Exec(Pipeline* line, tmark_t t, action_sh_t act, mail::ptr_t m){
+void Driver::Exec(Pipeline* line, tmark_t t, ctx::ptr_t c, graph::ptr_t m){
     Task *task = new Task;
 
     TaskAlgo::init(task);
@@ -339,11 +338,11 @@ void Driver::Exec(Pipeline* line, tmark_t t, action_sh_t act, mail::ptr_t m){
 	task->looks_ = 0;
 
 	task->t_ = t;
-	task->act_ = act;
+	task->act_ = c;
 	task->m_ = m;
 
 	{ // safe
-	    boost::lock_guard< boost::mutex > lk(mut_);
+		std::lock_guard< std::mutex > lk(mut_);
 
         task->marker_ = ++task_seq_;
         TaskAlgo::link_before(&jobs_, task);
@@ -367,23 +366,24 @@ uint32_t Driver::tiker() const{
 tmark_t Driver::HistoryTiker(){
 	uint64_t now = tiker64();
 	if(tmark_ == now){
-		tseq_.fetch_add(1, boost::memory_order_relaxed);
+		tseq_.fetch_add(1, std::memory_order_relaxed);
 	}
 	else{
 		tmark_ = now;
 		tseq_.store(0);
 	}
 
-	uint16_t tseq = tseq_.load(boost::memory_order_acquire);
+	uint16_t tseq = tseq_.load(std::memory_order_acquire);
 	return std::make_pair((uint32_t)(now & 0xfffffffful), tseq);
 }
 
 void Driver::Run(Manager *const mngr){
-    boost::random::uniform_int_distribution< > gen(0, workers_.size() - 1);
+    std::uniform_int_distribution< > gen(0, workers_.size() - 1);
     uint32_t qcount(0);
 	std::vector< Task* > kf;
 	while(!done_){
-        boost::unique_lock< boost::mutex > lk(mut_);
+		std::unique_lock< std::mutex > lk(mut_);
+
         cond_.wait(lk, [&]{
             return done_ || !no_tasks();
         });
@@ -500,22 +500,22 @@ void Driver::statistica(std::stringstream& ss){
 	ss << " JOBS: " << jobs_.count();
 }
 
-action_sh_t Driver::Service(Manager *const mngr, action_sh_t act, uint32_t tick){
+ctx::ptr_t Driver::Service(Manager *const mngr, ctx::ptr_t c, uint32_t tick){
 	mngr->Service(this, tick);
-	return action_sh_t();
+	return ctx::ptr_t();
 }
 
-action_sh_t Driver::Play(Manager *const mngr, action_sh_t act, mail::ptr_t m){
-	if(m->hdr()->type == mail::ML_COMMAND){
+ctx::ptr_t Driver::Play(Manager *const mngr, ctx::ptr_t c, graph::ptr_t m){
+	if(m->hdr()->type == graph::ML_COMMAND){
 		switch(m->hdr()->group){
 		case akva::CORE_MEASURE:{
 			auto t = m->hdr()->tmark;
 			auto c = m->hdr()->count;
 			if(c == 0){
-				std::list< akva::message_t > msgs;
+				std::list< akva::Message > msgs;
 				MeasureX *mesh = measure_;
 				for(auto i(0); i < 10; ++i){
-					akva::message_t msg = Manager::app()->Message(sizeof(Measure));
+					akva::Message msg = Manager::app()->MakeMessage(sizeof(Measure));
 					if(msg.ok()){
 						msg.Copy((uint8_t*)(&mesh->impl_), sizeof(Measure));
 						//msg.set_flags(42);
@@ -525,7 +525,7 @@ action_sh_t Driver::Play(Manager *const mngr, action_sh_t act, mail::ptr_t m){
 					mesh = mesh->prev_;
 				}
 
-				Broadcast(mngr, mail::ML_COMMAND, akva::CORE_MEASURE, msgs);
+				Broadcast(mngr, graph::ML_COMMAND, akva::CORE_MEASURE, msgs);
 			}
 			break;
 		} // case
@@ -535,6 +535,6 @@ action_sh_t Driver::Play(Manager *const mngr, action_sh_t act, mail::ptr_t m){
 	}
 
     mngr->Play(this, m);
-	return action_sh_t();
+	return ctx::ptr_t();
 }
 

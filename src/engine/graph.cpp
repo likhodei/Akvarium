@@ -1,13 +1,14 @@
-#include "mail.hpp"
-#include "regedit.hpp"
+#include "graph.hpp"
 
 #include <boost/functional/hash.hpp>
 
-using namespace mail;
+#include "regedit.hpp"
 
-// +++ Mail +++
+using namespace graph;
 
-Mail::Mail(uint16_t group, type_t type)
+// +++ Graph +++
+
+Graph::Graph(uint16_t group, type_t type)
  : h_(nullptr), d_(nullptr), words_(HDR_SIZE, 0){
 	h_ = (Hdr*)words_.data();
 	d_ = (uint64_t*)(words_.data() + HDR_SIZE);
@@ -16,13 +17,13 @@ Mail::Mail(uint16_t group, type_t type)
 	h_->type = type;
 }
 
-Mail::Mail(uint32_t *const body, uint16_t words)
+Graph::Graph(uint32_t *const body, uint16_t words)
 : h_(nullptr), d_(nullptr){
 	words_.reserve(HDR_SIZE);
 	Copy(body, words);
 }
 
-void Mail::Copy(uint32_t *const body, uint16_t words){
+void Graph::Copy(uint32_t *const body, uint16_t words){
 	std::copy(body, body + words, std::back_inserter(words_));
 	if(words_.size() >= HDR_SIZE){
 		h_ = (Hdr*)words_.data();
@@ -30,12 +31,12 @@ void Mail::Copy(uint32_t *const body, uint16_t words){
 	}
 }
 
-Hdr *const Mail::hdr() const{
+Hdr *const Graph::hdr() const{
 	BOOST_ASSERT(h_);
 	return (Hdr *const)h_;
 }
 
-size_t Mail::hash_value() const{
+size_t Graph::hash_value() const{
 	size_t seed = h_->magic;
 	boost::hash_combine(seed, h_->type);
 	boost::hash_combine(seed, h_->group);
@@ -49,12 +50,12 @@ size_t Mail::hash_value() const{
 	return seed;
 }
 
-uint64_t Mail::Visit(uint16_t magic){
+uint64_t Graph::Visit(uint16_t magic){
 	h_->users |= ((uint64_t)1 << akva::engine::Regedit::IxByMagic(magic));
 	return h_->users;
 }
 
-uint16_t Mail::users() const{
+uint16_t Graph::users() const{
 #if WIN64
 	return __popcnt64(h_->users); // ToDo: win assert
 #else
@@ -62,11 +63,11 @@ uint16_t Mail::users() const{
 #endif	
 }
 
-bool Mail::is_token() const{
+bool Graph::is_token() const{
 	return (h_->count == 0) ? true : false;
 }
 
-bool Mail::ok() const{
+bool Graph::ok() const{
 	if(h_ && (h_->magic != 0)){
 		return (words_.size() == (HDR_SIZE + 2 * h_->count)) ? true : false;
 	}
@@ -74,10 +75,10 @@ bool Mail::ok() const{
 		return false;
 }
 
-uint8_t *const Mail::data() const{
+uint8_t *const Graph::data() const{
 	return (uint8_t *const)words_.data();
 }
 
-uint16_t Mail::bytes() const{
+uint16_t Graph::bytes() const{
 	return words_.size() << 2;
 }

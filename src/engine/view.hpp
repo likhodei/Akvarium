@@ -1,15 +1,13 @@
 #pragma once
-#ifndef ENGINE_MESSAGE_H_
-#define ENGINE_MESSAGE_H_
-
-#include "block.hpp"
 #include <cstdint>
+
+#include "frame.hpp"
 
 namespace akva{
 
 class MessageView{
 public:
-	MessageView(burst_frame_ptr_t frame);
+	MessageView(burst_ptr_t frame);
 	~MessageView();
 
 	uint8_t *const ptr();
@@ -22,13 +20,13 @@ public:
 
 protected:
 	uint8_t* ptr_;
-	burst_frame_ptr_t fr_;
+	burst_ptr_t fr_;
 };
 
 struct Message{
 	Message();
-	Message(burst_frame_ptr_t body);
-	Message(uint16_t size, data_frame_ptr_t data);
+	Message(burst_ptr_t body);
+	Message(uint16_t size, frame_ptr_t data);
 
 	bool ok() const;
 
@@ -41,12 +39,12 @@ struct Message{
 
 	uint16_t Copy(const uint8_t* buffer, uint16_t n);
 	MessageView view();
-	burst_frame_ptr_t body_;
+	burst_ptr_t body_;
 };
 
 class FrameView{
 public:
-	FrameView(burst_frame_ptr_t frame);
+	FrameView(burst_ptr_t frame);
 	~FrameView();
 
 	uint8_t *const ptr();
@@ -54,9 +52,8 @@ public:
 
 protected:
 	uint8_t* ptr_;
-	burst_frame_ptr_t fr_;
+	burst_ptr_t fr_;
 };
 
 } // akva
-#endif // ENGINE_MESSAGE_H_
 

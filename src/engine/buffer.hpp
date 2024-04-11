@@ -1,42 +1,36 @@
 #pragma once
-#ifndef ENGINE_BUFFER_H_
-#define ENGINE_BUFFER_H_
-
-#include "block_interface.hpp"
-#include "support/simple_block.hpp"
-
-#include <boost/core/noncopyable.hpp>
-#include <boost/atomic.hpp>
-#include <boost/intrusive_ptr.hpp>
-
+#include <atomic>
 #include <cstdint>
 
-namespace akva{
-class Buffer;
-} // akva
+#include <boost/intrusive_ptr.hpp>
 
-void intrusive_ptr_add_ref(const akva::Buffer* b);
-void intrusive_ptr_release(const akva::Buffer* b);
+#include "allocator.hpp"
+#include "block.hpp"
 
-namespace akva{
-
-class Buffer: public support::BaseBlock, private boost::noncopyable{
+class Buffer: public akva::block::General{
 public:
-	Buffer(IAllocator *const allocator);
+	Buffer(akva::IAllocator *const allocator);
 	~Buffer();
 
-    uint8_t *const base() const;
-	uint8_t *const end() const;
-	size_t size() const;
+	Buffer(const Buffer&) = delete;
+	Buffer& operator=(Buffer&) = delete;
 
-	mutable boost::atomic_int refcount_;
+    uint8_t *const base() const override;
+	uint8_t *const end() const override;
+	size_t size() const override;
+
+	mutable std::atomic_int refcount_;
 
 protected:
-	IAllocator::pointer_t base_;
-	IAllocator* const allocator_;
+	akva::IAllocator::pointer_t base_;
+	akva::IAllocator* const allocator_;
 };
+
+void intrusive_ptr_add_ref(Buffer* b);
+void intrusive_ptr_release(Buffer* b);
+
+namespace akva{
 
 typedef boost::intrusive_ptr< Buffer > buffer_ptr_t;
 
 } //akva
-#endif // ENGINE_BUFFER_H_

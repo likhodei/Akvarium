@@ -1,7 +1,4 @@
 #pragma once
-#ifndef AKVARIUM_DECLARATION_H_
-#define AKVARIUM_DECLARATION_H_
-
 #include <cstdint>
 
 namespace akva{
@@ -18,7 +15,6 @@ enum core_command_t{
 enum group_spec_t{
     GR_ALL = 0,
     GR_CORE,
-    GR_SIN,
     GR_WEB,
     GR_MAX_GROUPS
 };
@@ -43,5 +39,3 @@ struct Measure{
 #pragma pack(pop)
 
 } // akva
-
-#endif // AKVARIUM_DECLARATION_H_ 

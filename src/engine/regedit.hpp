@@ -1,20 +1,14 @@
 #pragma once
-#ifndef ENGINE_REGEDIT_H_
-#define ENGINE_REGEDIT_H_
-
-#include "spin_lock.hpp"
+#include <cstdint>
+#include <set>
+#include <list>
+#include <string>
+#include <random>
 
 #include <boost/interprocess/interprocess_fwd.hpp>
 #include <boost/interprocess/detail/os_file_functions.hpp>
 
-#include <boost/random.hpp>
-
-#include <set>
-#include <map>
-#include <cstdint>
-#include <list>
-#include <string>
-#include <boost/array.hpp>
+#include "spin_lock.hpp"
 
 namespace akva{
 
@@ -100,7 +94,7 @@ private:
 	log_record_t rlog_;
 	Register w2_[MAX_RECORD_COUNT];
 
-	boost::random::mt19937 rng_;
+	std::mt19937 rng_;
 	mutable engine::MicroSpinLock guard_;
 	std::unique_ptr< RegTable > impl_; // todo: view ...
 };
@@ -132,5 +126,4 @@ private:
 
 } // engine;
 } // akva
-#endif // ENGINE_REGEDIT_H_
 
