@@ -404,20 +404,5 @@ void Tube::HandleRead(const boost::system::error_code& ec, size_t transferred, b
 		}
 
 		AsyncRead();
-/*
-		if(Available(d.point_.src) && Available(d.point_.dst)){
-            rbuf_.push_back(wbuf_);
-            wbuf_ = impl_->Aquare();
-		}
-*/
-/*
-		{
-			std::stringstream ss;
-			ss << " + " << std::hex << MAGIC << " + ";
-			ss << " <>> " << d.point_.src << " -> " << d.point_.dst  << std::dec << " <<> | ";
-			ss << len << (used ? " + ok" : "");
-            std::cout << ss.str() << std::endl;
-		}
-//*/
 	}
 }

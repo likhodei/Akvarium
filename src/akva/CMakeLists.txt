@@ -7,17 +7,17 @@ set(TARGET_SRC ../akvarium.cpp
 				  declaration.hpp
 				  manager.cpp
 				  manager.hpp
-				  action.cpp
-				  action.hpp
+				  context.cpp
+				  context.hpp
 				  driver.cpp
 				  driver.hpp
 				  akva.cpp
 				  akva.hpp)
 
+
 file(GLOB SRC_ENGINE ${AKVA_ENGINE}/spin_lock.[hc]pp
 					 ${AKVA_ENGINE}/detail/sleeper.[hc]pp
-					 ${AKVA_ENGINE}/mail.[hc]pp
-					 ${AKVA_ENGINE}/message.[hc]pp
+					 ${AKVA_ENGINE}/graph.[hc]pp
 					 ${AKVA_ENGINE}/frame.[hc]pp
 					 ${AKVA_ENGINE}/memory.[hc]pp
 					 ${AKVA_ENGINE}/regular_registr.[hc]pp
@@ -28,8 +28,9 @@ file(GLOB SRC_ENGINE ${AKVA_ENGINE}/spin_lock.[hc]pp
 					 ${AKVA_ENGINE}/logger.[hc]pp
 					 ${AKVA_ENGINE}/notification.[hc]pp
 					 ${AKVA_ENGINE}/terminal.[hc]pp
+					 ${AKVA_ENGINE}/view.[hc]pp
 					 ${AKVA_ENGINE}/block.[hc]pp
-					 ${AKVA_ENGINE}/bits.hpp
+					 ${AKVA_ENGINE}/bit_utils.hpp
 					 )
 
 source_group("src" FILES ${TARGET_SRC})

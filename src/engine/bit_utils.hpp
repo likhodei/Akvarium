@@ -39,7 +39,7 @@ inline void ClrBits(T1& word, T2 bits){
 
 template< typename baseT >
 inline baseT Reverse(baseT x){
-	static_assert(false, "Type is unsupported.");
+	assert(!"Type is unsupported.");
     return x;
 }
 
